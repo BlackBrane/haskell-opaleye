@@ -7,6 +7,7 @@ module Opaleye.Internal.HaskellDB.PrimQuery where
 import qualified Opaleye.Internal.Tag as T
 import Data.ByteString (ByteString)
 import qualified Data.List.NonEmpty as NEL
+import qualified Opaleye.SqlType      as SqlType
 
 type TableName  = String
 type Attribute  = String
@@ -27,7 +28,8 @@ data PrimExpr   = AttrExpr  Symbol
                 | ListExpr (NEL.NonEmpty PrimExpr)
                 | ParamExpr (Maybe Name) PrimExpr
                 | FunExpr Name [PrimExpr]
-                | CastExpr Name PrimExpr -- ^ Cast an expression to a given type.
+                | CastExpr SqlType.SqlType PrimExpr
+                -- ^ Cast an expression to a given type.
                 | DefaultInsertExpr -- Indicate that we want to insert the
                                     -- default value into a column.
                                     -- TODO: I'm not sure this belongs
