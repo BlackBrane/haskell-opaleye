@@ -117,17 +117,32 @@ ppTable st = case sqlTableSchemaName st of
   where
     tname = doubleQuotes (text (sqlTableName st))
 
-ppStartBound :: SqlRangeBound -> Doc
-ppStartBound (Inclusive a) = text "'[" <> ppSqlExpr a
-ppStartBound (Exclusive a) = text "'(" <> ppSqlExpr a
-ppStartBound PosInfinity   = text "'(infinity"
-ppStartBound NegInfinity   = text "'(-infinity"
 
-ppEndBound :: SqlRangeBound -> Doc
-ppEndBound (Inclusive a) = ppSqlExpr a <> text "]'"
-ppEndBound (Exclusive a) = ppSqlExpr a <> text ")'"
-ppEndBound PosInfinity   = text "infinity)'"
-ppEndBound NegInfinity   = text "-infinity)'"
+ppBounds :: SqlRangeBound -> SqlRangeBound -> Doc
+ppBounds x y = hcat . punctuate comma $
+    [ boundVal x
+    , boundVal y
+    , boundParenL x <> boundParenR y ]
+
+    where
+        boundParenL :: SqlRangeBound -> Doc
+        boundParenL (Inclusive _) = text "'["
+        boundParenL (Exclusive _) = text "'("
+        boundParenL PosInfinity   = text "'("
+        boundParenL NegInfinity   = text "'("
+
+        boundParenR :: SqlRangeBound -> Doc
+        boundParenR (Inclusive _) = text "]'"
+        boundParenR (Exclusive _) = text ")'"
+        boundParenR PosInfinity   = text ")'"
+        boundParenR NegInfinity   = text ")'"
+
+        boundVal :: SqlRangeBound -> Doc
+        boundVal (Inclusive x) = ppSqlExpr x
+        boundVal (Exclusive x) = ppSqlExpr x
+        boundVal PosInfinity   = text "'infinity'"
+        boundVal NegInfinity   = text "'-infinity'"
+
 
 ppSqlExpr :: SqlExpr -> Doc
 ppSqlExpr expr =
@@ -147,7 +162,7 @@ ppSqlExpr expr =
       CastSqlExpr typ e      -> text "CAST" <> parens (ppSqlExpr e <+> text "AS" <+> text typ)
       DefaultSqlExpr         -> text "DEFAULT"
       ArraySqlExpr es        -> text "ARRAY" <> brackets (commaH ppSqlExpr es)
-      RangeSqlExpr start end -> (hcat . punctuate comma) [ppStartBound start, ppEndBound end]
+      RangeSqlExpr start end -> ppBounds start end
       AggrFunSqlExpr f es ord distinct -> text f <> parens (ppSqlDistinct distinct <+> commaH ppSqlExpr es <+> ppOrderBy ord)
       CaseSqlExpr cs el   -> text "CASE" <+> vcat (toList (fmap ppWhen cs))
                              <+> text "ELSE" <+> ppSqlExpr el <+> text "END"
