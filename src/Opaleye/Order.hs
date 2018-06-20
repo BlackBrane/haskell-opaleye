@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- | Ordering, @LIMIT@ and @OFFSET@
 
@@ -14,6 +15,8 @@ module Opaleye.Order ( -- * Order by
                      -- * Limit and offset
                      , limit
                      , offset
+                     -- * Distinct on
+                     , distinctOn
                      -- * Exact ordering
                      , O.exact
                      -- * Other
@@ -21,14 +24,14 @@ module Opaleye.Order ( -- * Order by
                      , SqlOrd
                      ) where
 
+import qualified Data.Profunctor.Product.Default as D
 import qualified Opaleye.Column as C
-import           Opaleye.QueryArr (Query)
-import qualified Opaleye.Internal.QueryArr as Q
+import qualified Opaleye.Internal.HaskellDB.PrimQuery as HPQ
 import qualified Opaleye.Internal.Order as O
+import qualified Opaleye.Internal.QueryArr as Q
+import qualified Opaleye.Internal.Unpackspec as U
 import qualified Opaleye.Select         as S
 import qualified Opaleye.SqlTypes as T
-
-import qualified Opaleye.Internal.HaskellDB.PrimQuery as HPQ
 
 -- We can probably disable ConstraintKinds and TypeSynonymInstances
 -- when we move to Sql... instead of PG..
@@ -116,6 +119,14 @@ that many result rows.
 -}
 offset :: Int -> S.Select a -> S.Select a
 offset n a = Q.simpleQueryArr (O.offset' n . Q.runSimpleQueryArr a)
+
+-- * Distinct on
+
+-- | Keep only the first row from each set where the given function returns the same
+--   result.
+distinctOn :: D.Default U.Unpackspec b b => (a -> b) -> S.Select a -> S.Select a
+distinctOn proj q = Q.simpleQueryArr (O.distinctOn D.def proj . Q.runSimpleQueryArr q)
+
 
 -- * Other
 
