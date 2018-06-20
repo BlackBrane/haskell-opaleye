@@ -46,6 +46,7 @@ data PrimQuery' a = Unit
                   | Aggregate (Bindings (Maybe (HPQ.AggrOp, [HPQ.OrderExpr], HPQ.AggrDistinct), HPQ.PrimExpr))
                               (PrimQuery' a)
                   | Order     [HPQ.OrderExpr] (PrimQuery' a)
+                  | DistinctOn (NEL.NonEmpty HPQ.PrimExpr) (PrimQuery' a)
                   | Limit     LimitOp (PrimQuery' a)
                   | Join      JoinType
                               HPQ.PrimExpr
@@ -66,62 +67,65 @@ type PrimQuery = PrimQuery' ()
 type PrimQueryFold = PrimQueryFold' ()
 
 data PrimQueryFold' a p = PrimQueryFold
-  { unit      :: p
-  , empty     :: a -> p
-  , baseTable :: TableIdentifier -> Bindings HPQ.PrimExpr -> p
-  , product   :: NEL.NonEmpty p -> [HPQ.PrimExpr] -> p
-  , aggregate :: Bindings (Maybe (HPQ.AggrOp, [HPQ.OrderExpr], HPQ.AggrDistinct), HPQ.PrimExpr) -> p -> p
-  , order     :: [HPQ.OrderExpr] -> p -> p
-  , limit     :: LimitOp -> p -> p
-  , join      :: JoinType
-              -> HPQ.PrimExpr
-              -> Bindings HPQ.PrimExpr
-              -> Bindings HPQ.PrimExpr
-              -> p
-              -> p
-              -> p
-  , existsf   :: Bool -> p -> p -> p
-  , values    :: [Symbol] -> NEL.NonEmpty [HPQ.PrimExpr] -> p
-  , binary    :: BinOp -> Bindings (HPQ.PrimExpr, HPQ.PrimExpr) -> (p, p) -> p
-  , label     :: String -> p -> p
-  , relExpr   :: HPQ.PrimExpr -> Bindings HPQ.PrimExpr -> p
+  { unit       :: p
+  , empty      :: a -> p
+  , baseTable  :: TableIdentifier -> Bindings HPQ.PrimExpr -> p
+  , product    :: NEL.NonEmpty p -> [HPQ.PrimExpr] -> p
+  , aggregate  :: Bindings (Maybe (HPQ.AggrOp, [HPQ.OrderExpr], HPQ.AggrDistinct), HPQ.PrimExpr) -> p -> p
+  , order      :: [HPQ.OrderExpr] -> p -> p
+  , distinctOn :: NEL.NonEmpty HPQ.PrimExpr -> p -> p
+  , limit      :: LimitOp -> p -> p
+  , join       :: JoinType
+               -> HPQ.PrimExpr
+               -> Bindings HPQ.PrimExpr
+               -> Bindings HPQ.PrimExpr
+               -> p
+               -> p
+               -> p
+  , existsf    :: Bool -> p -> p -> p
+  , values     :: [Symbol] -> NEL.NonEmpty [HPQ.PrimExpr] -> p
+  , binary     :: BinOp -> Bindings (HPQ.PrimExpr, HPQ.PrimExpr) -> (p, p) -> p
+  , label      :: String -> p -> p
+  , relExpr    :: HPQ.PrimExpr -> Bindings HPQ.PrimExpr -> p
     -- ^ A relation-valued expression
   }
 
 
 primQueryFoldDefault :: PrimQueryFold' a (PrimQuery' a)
 primQueryFoldDefault = PrimQueryFold
-  { unit      = Unit
-  , empty     = Empty
-  , baseTable = BaseTable
-  , product   = Product
-  , aggregate = Aggregate
-  , order     = Order
-  , limit     = Limit
-  , join      = Join
-  , values    = Values
-  , binary    = Binary
-  , label     = Label
-  , relExpr   = RelExpr
-  , existsf   = Exists
+  { unit       = Unit
+  , empty      = Empty
+  , baseTable  = BaseTable
+  , product    = Product
+  , aggregate  = Aggregate
+  , order      = Order
+  , distinctOn = DistinctOn
+  , limit      = Limit
+  , join       = Join
+  , values     = Values
+  , binary     = Binary
+  , label      = Label
+  , relExpr    = RelExpr
+  , existsf    = Exists
   }
 
 foldPrimQuery :: PrimQueryFold' a p -> PrimQuery' a -> p
 foldPrimQuery f = fix fold
   where fold self primQ = case primQ of
-          Unit                      -> unit      f
-          Empty a                   -> empty     f a
-          BaseTable ti syms         -> baseTable f ti syms
-          Product qs pes            -> product   f (fmap self qs) pes
-          Aggregate aggrs q         -> aggregate f aggrs (self q)
-          Order pes q               -> order     f pes (self q)
-          Limit op q                -> limit     f op (self q)
-          Join j cond pe1 pe2 q1 q2 -> join      f j cond pe1 pe2 (self q1) (self q2)
-          Values ss pes             -> values    f ss pes
-          Binary binop pes (q1, q2) -> binary    f binop pes (self q1, self q2)
-          Label l pq                -> label     f l (self pq)
-          RelExpr pe syms           -> relExpr   f pe syms
-          Exists b q1 q2            -> existsf   f b (self q1) (self q2)
+          Unit                      -> unit       f
+          Empty a                   -> empty      f a
+          BaseTable ti syms         -> baseTable  f ti syms
+          Product qs pes            -> product    f (fmap self qs) pes
+          Aggregate aggrs q         -> aggregate  f aggrs (self q)
+          Order pes q               -> order      f pes (self q)
+          DistinctOn pes q          -> distinctOn f pes (self q)
+          Limit op q                -> limit      f op (self q)
+          Join j cond pe1 pe2 q1 q2 -> join       f j cond pe1 pe2 (self q1) (self q2)
+          Values ss pes             -> values     f ss pes
+          Binary binop pes (q1, q2) -> binary     f binop pes (self q1, self q2)
+          Label l pq                -> label      f l (self pq)
+          RelExpr pe syms           -> relExpr    f pe syms
+          Exists b q1 q2            -> existsf    f b (self q1) (self q2)
         fix g = let x = g x in x
 
 times :: PrimQuery -> PrimQuery -> PrimQuery

@@ -89,6 +89,7 @@ sqlQueryGenerator = PQ.PrimQueryFold
   , PQ.product   = product
   , PQ.aggregate = aggregate
   , PQ.order     = order
+  , PQ.distinctOn = distinguish
   , PQ.limit     = limit_
   , PQ.join      = join
   , PQ.values    = values
@@ -158,6 +159,11 @@ order :: [HPQ.OrderExpr] -> Select -> Select
 order oes s = SelectFrom $
     newSelect { tables = [s]
               , orderBy = map (SD.toSqlOrder SD.defaultSqlGenerator) oes }
+
+distinguish :: NEL.NonEmpty HPQ.PrimExpr -> Select -> Select
+distinguish exprs s = SelectFrom $
+    newSelect { tables = [s]
+              , distinctOn = Just $ SG.sqlExpr SD.defaultSqlGenerator <$> exprs }
 
 limit_ :: PQ.LimitOp -> Select -> Select
 limit_ lo s = SelectFrom $ newSelect { tables = [s]

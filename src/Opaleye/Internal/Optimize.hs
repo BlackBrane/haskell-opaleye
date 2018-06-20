@@ -42,6 +42,7 @@ removeEmpty = PQ.foldPrimQuery PQ.PrimQueryFold {
                                       <*> pure y
   , PQ.aggregate = fmap . PQ.Aggregate
   , PQ.order     = fmap . PQ.Order
+  , PQ.distinctOn = fmap . PQ.DistinctOn
   , PQ.limit     = fmap . PQ.Limit
   , PQ.join      = \jt pe pes1 pes2 pq1 pq2 -> PQ.Join jt pe pes1 pes2 <$> pq1 <*> pq2
   , PQ.existsf   = \b pq1 pq2 -> PQ.Exists b <$> pq1 <*> pq2
