@@ -36,13 +36,14 @@ data SelectAttrs =
   deriving Show
 
 data From = From {
-  attrs     :: SelectAttrs,
-  tables    :: [Select],
-  criteria  :: [HSql.SqlExpr],
-  groupBy   :: Maybe (NEL.NonEmpty HSql.SqlExpr),
-  orderBy   :: [(HSql.SqlExpr, HSql.SqlOrder)],
-  limit     :: Maybe Int,
-  offset    :: Maybe Int
+  attrs      :: SelectAttrs,
+  tables     :: [Select],
+  criteria   :: [HSql.SqlExpr],
+  groupBy    :: Maybe (NEL.NonEmpty HSql.SqlExpr),
+  orderBy    :: [(HSql.SqlExpr, HSql.SqlOrder)],
+  distinctOn :: Maybe (NEL.NonEmpty HSql.SqlExpr),
+  limit      :: Maybe Int,
+  offset     :: Maybe Int
   }
           deriving Show
 
@@ -221,13 +222,14 @@ binOp o = case o of
 
 newSelect :: From
 newSelect = From {
-  attrs     = Star,
-  tables    = [],
-  criteria  = [],
-  groupBy   = Nothing,
-  orderBy   = [],
-  limit     = Nothing,
-  offset    = Nothing
+  attrs      = Star,
+  tables     = [],
+  criteria   = [],
+  groupBy    = Nothing,
+  orderBy    = [],
+  distinctOn = Nothing,
+  limit      = Nothing,
+  offset     = Nothing
   }
 
 sqlExpr :: HPQ.PrimExpr -> HSql.SqlExpr
